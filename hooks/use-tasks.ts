@@ -11,12 +11,33 @@ import type { Task, TaskPayload, TaskUpdatePayload } from "@/types/task";
 
 const TASKS_QUERY_KEY = ["tasks"];
 
-async function parseJson<T>(response: Response): Promise<T> {
-    const data = await response.json();
+async function parseResponse<T>(response: Response): Promise<T> {
+    const text = await response.text();
+
     if (!response.ok) {
-        const errorMessage =
-            typeof data?.error === "string" ? data.error : "Request failed";
-        throw new Error(errorMessage);
+        console.error("API ERROR:", text);
+        throw new Error(text || "Request failed");
+    }
+
+    if (!text) {
+        throw new Error("Empty response from server");
+    }
+
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        console.error("Invalid JSON:", text);
+        throw new Error("Invalid JSON response");
+    }
+}
+
+function unwrapTask<T extends Task>(data: T | { task?: T } | undefined): T {
+    if (!data) {
+        throw new Error("Empty response from server");
+    }
+
+    if (typeof data === "object" && "task" in data && data.task) {
+        return data.task;
     }
 
     return data as T;
@@ -24,8 +45,8 @@ async function parseJson<T>(response: Response): Promise<T> {
 
 async function fetchTasks(): Promise<Task[]> {
     const response = await fetch("/api/tasks", { cache: "no-store" });
-    const data = await parseJson<{ tasks: Task[] }>(response);
-    return data.tasks;
+    const data = await parseResponse<{ tasks: Task[] }>(response);
+    return data?.tasks ?? [];
 }
 
 async function createTask(payload: TaskPayload): Promise<Task> {
@@ -37,8 +58,8 @@ async function createTask(payload: TaskPayload): Promise<Task> {
         body: JSON.stringify(payload),
     });
 
-    const data = await parseJson<{ task: Task }>(response);
-    return data.task;
+    const data = await parseResponse<Task | { task: Task }>(response);
+    return unwrapTask(data);
 }
 
 async function updateTask({
@@ -56,8 +77,8 @@ async function updateTask({
         body: JSON.stringify(payload),
     });
 
-    const data = await parseJson<{ task: Task }>(response);
-    return data.task;
+    const data = await parseResponse<Task | { task: Task }>(response);
+    return unwrapTask(data);
 }
 
 async function deleteTask(id: string): Promise<void> {
@@ -65,7 +86,7 @@ async function deleteTask(id: string): Promise<void> {
         method: "DELETE",
     });
 
-    await parseJson<{ success: true }>(response);
+    await parseResponse<{ success: true }>(response);
 }
 
 export function useTasks() {
