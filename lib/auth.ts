@@ -67,8 +67,11 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
+        const profileSub =
+          typeof profile?.sub === "string" ? profile.sub : undefined;
+
         return {
           ...token,
           accessToken: account.access_token,
@@ -76,8 +79,12 @@ export const authOptions: NextAuthOptions = {
             ? account.expires_at * 1000
             : Date.now() + 60 * 60 * 1000,
           refreshToken: account.refresh_token ?? token.refreshToken,
-          userId: token.sub,
+          userId: token.sub ?? account.providerAccountId ?? profileSub,
         };
+      }
+
+      if (!token.userId && token.sub) {
+        token.userId = token.sub;
       }
 
       if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
