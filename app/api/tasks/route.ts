@@ -38,80 +38,38 @@ export async function GET() {
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
     try {
+        console.log("POST HIT");
+
         const session = await getServerSession(authOptions);
-        const userId = session?.user?.id;
+        console.log("SESSION:", session);
 
-        if (!session?.user || !userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (!session || !session.user || !session.user.id) {
+            console.error("NO USER ID");
+            return new Response("Unauthorized", { status: 401 });
         }
 
-        const body = await request.json();
+        const body = await req.json();
+        console.log("BODY:", body);
+
         const title = typeof body.title === "string" ? body.title.trim() : "";
-        const description =
-            typeof body.description === "string" ? body.description.trim() : "";
-        const dueDate = body.dueDate ? new Date(body.dueDate) : null;
-        const status: TaskStatus =
-            typeof body.status === "string" && VALID_STATUS.includes(body.status)
-                ? body.status
-                : "todo";
-        const priority: TaskPriority =
-            typeof body.priority === "string" &&
-                VALID_PRIORITY.includes(body.priority as TaskPriority)
-                ? (body.priority as TaskPriority)
-                : "medium";
-
         if (!title) {
-            return NextResponse.json({ error: "Title is required" }, { status: 400 });
+            return new Response("Title is required", { status: 400 });
         }
 
-        if (dueDate && Number.isNaN(dueDate.getTime())) {
-            return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
-        }
-
-        const createdTask = await prisma.task.create({
+        const task = await prisma.task.create({
             data: {
                 title,
-                description: description || null,
-                dueDate,
-                status,
-                priority,
-                userId,
+                userId: session.user.id,
             },
         });
 
-        if (session.accessToken) {
-            try {
-                const googleEventId = await createEvent(
-                    {
-                        id: createdTask.id,
-                        title: createdTask.title,
-                        description: createdTask.description,
-                        dueDate: createdTask.dueDate,
-                    },
-                    session.accessToken,
-                );
+        console.log("CREATED:", task);
 
-                if (googleEventId) {
-                    const syncedTask = await prisma.task.update({
-                        where: { id: createdTask.id },
-                        data: { googleEventId },
-                    });
-
-                    return NextResponse.json({ task: syncedTask }, { status: 201 });
-                }
-            } catch (calendarError) {
-                console.error("Failed to create Google Calendar event:", calendarError);
-            }
-        }
-
-        return NextResponse.json({ task: createdTask }, { status: 201 });
-    } catch (error) {
-        console.error("Failed to create task:", error);
-        return NextResponse.json(
-            { error: "Failed to create task" },
-            { status: 500 },
-        );
+        return Response.json(task);
+    } catch (err) {
+        console.error("ERROR:", err);
+        return new Response("Server error", { status: 500 });
     }
 }
