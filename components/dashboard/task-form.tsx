@@ -71,7 +71,7 @@ export function TaskForm({ onSubmit, isLoading = false }: TaskFormProps) {
             </DialogTrigger>
             <AnimatePresence>
                 {open ? (
-                    <DialogContent forceMount asChild showCloseButton={false}>
+                    <DialogContent forceMount showCloseButton={false}>
                         <motion.div
                             initial={{ opacity: 0, scale: 0.97, y: 8 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
