@@ -32,6 +32,7 @@ export function TaskForm({ onSubmit, isLoading = false }: TaskFormProps) {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        console.log("SUBMIT CLICKED");
 
         if (!title.trim()) {
             setError("Title is required");
@@ -41,6 +42,7 @@ export function TaskForm({ onSubmit, isLoading = false }: TaskFormProps) {
         setError(null);
 
         try {
+            console.log("SUBMIT TRIGGERED");
             await onSubmit({
                 title: title.trim(),
                 description: description.trim(),
